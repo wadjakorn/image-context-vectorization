@@ -273,10 +273,10 @@ async def list_or_search_images(
                 query_objects = [obj.strip().lower() for obj in query.split() if obj.strip()]
                 if query_objects:
                     object_results = extractor_instance.get_all_images_data(limit=limit * 3)
-                    # Filter by query words in objects
+                    # Filter by query words in objects (exact match)
                     object_results = [
                         img for img in object_results
-                        if any(query_obj in [obj.lower() for obj in img['objects']] for query_obj in query_objects)
+                        if any(query_obj == obj.lower() for query_obj in query_objects for obj in img['objects'])
                     ]
                     # Add distance and score for consistency
                     for img in object_results:
@@ -308,8 +308,9 @@ async def list_or_search_images(
                 # Calculate similarity score from distance
                 score = max(0.0, 1.0 - result.get('distance', 0.0))
                 
-                # Apply minimum score filter if specified and context search is enabled
-                if min_score is not None and search_by_context and score < min_score:
+                # Apply minimum score filter only to context search results, not object search results
+                is_object_match = result.get('distance', 0.0) == 0.0  # Object matches have distance = 0.0
+                if min_score is not None and search_by_context and not is_object_match and score < min_score:
                     continue
                 
                 # Parse size from string format "1920x1080"
@@ -430,4 +431,20 @@ async def delete_image(
         raise he
     except Exception as e:
         logger.error(f"Error deleting image {image_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/database/clear")
+async def clear_all_images(
+    extractor_instance = Depends(get_extractor_lazy)
+):
+    """Clear all images from the database (files remain on disk)."""
+    try:
+        success = extractor_instance.database.clear_all_images()
+        if success:
+            return {"success": True, "message": "All images cleared from database"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to clear database")
+    except Exception as e:
+        logger.error(f"Error clearing all images: {e}")
         raise HTTPException(status_code=500, detail=str(e))

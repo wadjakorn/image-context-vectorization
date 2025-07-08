@@ -235,3 +235,17 @@ class VectorDatabase:
         except Exception as e:
             self.logger.error(f"Error getting all image data: {e}")
             return []
+
+    def clear_all_images(self) -> bool:
+        """Clear all images from the database collection"""
+        try:
+            # Get all document IDs
+            results = self.collection.get()
+            if results['ids']:
+                # Delete all documents
+                self.collection.delete(ids=results['ids'])
+                self.logger.info(f"Cleared {len(results['ids'])} images from database")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error clearing database: {e}")
+            return False

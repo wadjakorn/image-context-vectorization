@@ -12,6 +12,7 @@ import ImageUpload from './components/ImageUpload';
 import ImageBrowser from './components/ImageBrowser';
 import ProcessingStatus from './components/ProcessingStatus';
 import ModelManagement from './components/ModelManagement';
+import DirectoryScanner from './components/DirectoryScanner';
 import { apiService, HealthResponse } from './services/api';
 import toast from 'react-hot-toast';
 
@@ -139,15 +140,11 @@ function App() {
                 Directory Processing
               </h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Process entire directories of images
+                Scan and process images from the uploads directory
               </p>
             </div>
             <div className="max-w-2xl mx-auto">
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <p className="text-gray-600 dark:text-gray-400 text-center">
-                  Directory processing interface coming soon...
-                </p>
-              </div>
+              <DirectoryScanner />
             </div>
           </div>
         );

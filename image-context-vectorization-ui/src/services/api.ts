@@ -96,6 +96,12 @@ export interface HealthResponse {
   };
 }
 
+export interface ModelInfo {
+  name: string;
+  source: string;
+  loaded: boolean;
+}
+
 export interface ModelStatus {
   models: {
     blip_processor: boolean;
@@ -103,6 +109,12 @@ export interface ModelStatus {
     clip_processor: boolean;
     clip_model: boolean;
     sentence_transformer: boolean;
+  };
+  model_info: {
+    blip: ModelInfo;
+    clip: ModelInfo;
+    sentence_transformer: ModelInfo;
+    device: string;
   };
   device: string;
   timestamp: string;
@@ -290,16 +302,20 @@ export const apiService = {
     nResults = 5,
     includeMetadata = true,
     minScore?: number,
-    objects?: string
+    objects?: string,
+    searchByContext = true,
+    searchByObjects = true
   ): Promise<SearchResponse> {
     // Use the new unified endpoint for search
     const params: any = {
       query,
       limit: nResults,
       include_metadata: includeMetadata,
+      search_by_context: searchByContext,
+      search_by_objects: searchByObjects,
     };
     
-    if (minScore !== undefined) {
+    if (minScore !== undefined && searchByContext) {
       params.min_score = minScore;
     }
     if (objects) {
@@ -371,6 +387,11 @@ export const apiService = {
         keep_first: keepFirst,
       },
     });
+    return response.data;
+  },
+
+  async clearAllImages(): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete('/api/v1/images/database/clear');
     return response.data;
   },
 };

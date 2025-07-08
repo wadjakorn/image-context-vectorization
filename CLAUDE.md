@@ -12,7 +12,7 @@ The system uses BLIP (image captioning), CLIP (object detection), and SentenceTr
 
 ## Development Rules "IMPORTANT!"
 
-- **Summarize the plan before coding**: Always provide a brief summary of the intended changes or features before starting implementation.
+- **Do not coding until user allow to start**: Always provide a brief summary of the intended changes or features. let user approve before starting implementation.
 - **Be simple and do not over-engineer**: Focus on clear, maintainable code. Avoid unnecessary complexity.
 - **Do not add new features**: Stick to the existing functionality. Do not introduce new features unless explicitly requested.
 

@@ -98,19 +98,19 @@ const ModelManagement: React.FC<ModelManagementProps> = ({ className = '' }) => 
   };
 
   const getLoadedModelsCount = () => {
-    if (!modelStatus) return 0;
-    return Object.values(modelStatus.models).filter(Boolean).length;
+    if (!modelStatus?.model_info) return 0;
+    const { blip, clip, sentence_transformer } = modelStatus.model_info;
+    return [blip?.loaded, clip?.loaded, sentence_transformer?.loaded].filter(Boolean).length;
   };
 
   const getTotalModelsCount = () => {
-    if (!modelStatus) return 0;
-    return Object.keys(modelStatus.models).length;
+    return 3; // BLIP, CLIP, Sentence Transformer
   };
 
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Model Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -135,17 +135,6 @@ const ModelManagement: React.FC<ModelManagementProps> = ({ className = '' }) => 
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Last Load Time</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {preloadData ? `${preloadData.timings.total.toFixed(1)}s` : 'N/A'}
-              </p>
-            </div>
-            <ClockIcon className="w-8 h-8 text-green-400" />
-          </div>
-        </div>
       </div>
 
       {/* Model Details */}
@@ -177,35 +166,65 @@ const ModelManagement: React.FC<ModelManagementProps> = ({ className = '' }) => 
 
         {modelStatus ? (
           <div className="space-y-3">
-            {Object.entries(modelStatus.models).map(([modelKey, isLoaded]) => (
-              <div
-                key={modelKey}
-                className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-md"
-              >
+            {/* BLIP Model */}
+            {modelStatus.model_info?.blip && (
+              <div className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-md">
                 <div className="flex items-center space-x-3">
-                  {getModelIcon(isLoaded)}
+                  {getModelIcon(modelStatus.model_info.blip.loaded)}
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">
-                      {formatModelName(modelKey)}
+                      BLIP Model
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {isLoaded ? 'Loaded in memory' : 'Not loaded'}
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {modelStatus.model_info.blip.name}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      {modelStatus.model_info.blip.source}
                     </p>
                   </div>
                 </div>
-                
-                {preloadData && preloadData.timings[modelKey as keyof typeof preloadData.timings] && (
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {(preloadData.timings[modelKey as keyof typeof preloadData.timings] as number).toFixed(2)}s
+              </div>
+            )}
+
+            {/* CLIP Model */}
+            {modelStatus.model_info?.clip && (
+              <div className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-md">
+                <div className="flex items-center space-x-3">
+                  {getModelIcon(modelStatus.model_info.clip.loaded)}
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      CLIP Model
+                    </p>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {modelStatus.model_info.clip.name}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Load time
+                      {modelStatus.model_info.clip.source}
                     </p>
                   </div>
-                )}
+                </div>
               </div>
-            ))}
+            )}
+
+            {/* Sentence Transformer */}
+            {modelStatus.model_info?.sentence_transformer && (
+              <div className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-md">
+                <div className="flex items-center space-x-3">
+                  {getModelIcon(modelStatus.model_info.sentence_transformer.loaded)}
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      Sentence Transformer
+                    </p>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {modelStatus.model_info.sentence_transformer.name}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      {modelStatus.model_info.sentence_transformer.source}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -229,67 +248,32 @@ const ModelManagement: React.FC<ModelManagementProps> = ({ className = '' }) => 
         
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-400">
-            Preload all models into memory for faster processing. This is recommended before processing images
-            to avoid delays on the first request.
+            Preload all models into memory for faster processing.
           </p>
           
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handlePreloadModels}
-              disabled={preloading}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {preloading ? (
-                <ArrowPathIcon className="w-4 h-4 animate-spin" />
-              ) : (
-                <PlayIcon className="w-4 h-4" />
-              )}
-              <span>{preloading ? 'Preloading Models...' : 'Preload All Models'}</span>
-            </button>
-          </div>
-
-          {/* Timeout Indicator */}
-          <TimeoutIndicator
-            isLoading={preloading}
-            operation="preload"
-            onTimeout={() => toast.error('Model preloading is taking longer than expected')}
-          />
+          <button
+            onClick={handlePreloadModels}
+            disabled={preloading}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {preloading ? (
+              <ArrowPathIcon className="w-4 h-4 animate-spin" />
+            ) : (
+              <PlayIcon className="w-4 h-4" />
+            )}
+            <span>{preloading ? 'Preloading...' : 'Preload All Models'}</span>
+          </button>
 
           {preloadData && (
-            <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
-              <div className="flex items-center mb-2">
+            <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
+              <div className="flex items-center">
                 <CheckCircleIcon className="w-5 h-5 text-green-500 mr-2" />
                 <p className="text-sm font-medium text-green-700 dark:text-green-300">
                   Models preloaded successfully!
                 </p>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-green-600 dark:text-green-400">
-                {Object.entries(preloadData.timings).map(([model, time]) => (
-                  <div key={model} className="flex justify-between">
-                    <span>{formatModelName(model)}:</span>
-                    <span>{typeof time === 'number' ? time.toFixed(2) : time}s</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                Completed at: {formatTimestamp(preloadData.timestamp)}
-              </p>
             </div>
           )}
-
-          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md">
-            <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
-              Expected Loading Times (CPU M1 Mac):
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs text-blue-600 dark:text-blue-400">
-              <div>• Sentence Transformer: ~0.4s</div>
-              <div>• BLIP Processor: ~0.01s</div>
-              <div>• BLIP Model: ~2.0s</div>
-              <div>• CLIP Processor: ~0.04s</div>
-              <div>• CLIP Model: ~1.0s</div>
-              <div className="col-span-2 font-medium">• Total: ~3.5s</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

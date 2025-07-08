@@ -46,7 +46,6 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [objectFilter, setObjectFilter] = useState('');
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [isFilterMode, setIsFilterMode] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -54,7 +53,9 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
   const [searchOptions, setSearchOptions] = useState({
     limit: 20,
     minScore: 0.1,
-    includeMetadata: true
+    includeMetadata: true,
+    searchByContext: true,
+    searchByObjects: true
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -87,42 +88,37 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
 
 
   // Search images
-  const handleSearch = async (query: string = searchQuery, objects: string = objectFilter) => {
-    if (!query.trim() && !objects.trim()) {
+  const handleSearch = async (query: string = searchQuery) => {
+    if (!query.trim()) {
       loadAllImages();
       return;
     }
 
     setSearchLoading(true);
-    setIsSearchMode(!!query.trim());
-    setIsFilterMode(!!objects.trim());
+    setIsSearchMode(true);
+    setIsFilterMode(false);
     
     try {
-      if (query.trim()) {
-        // Search mode with optional object filter
-        const response = await apiService.searchImages(
-          query,
-          searchOptions.limit,
-          searchOptions.includeMetadata,
-          searchOptions.minScore,
-          objects.trim() || undefined
-        );
-        
-        if (response && response.results) {
-          setImages(response.results);
-          const filterText = objects.trim() ? ` (filtered by: ${objects})` : '';
-          toast.success(`Found ${response.results.length} matching images${filterText}`);
-        } else {
-          setImages([]);
-          toast.error('No images found matching your search');
-        }
+      const response = await apiService.searchImages(
+        query,
+        searchOptions.limit,
+        searchOptions.includeMetadata,
+        searchOptions.searchByContext ? searchOptions.minScore : undefined,
+        undefined,
+        searchOptions.searchByContext,
+        searchOptions.searchByObjects
+      );
+      
+      if (response && response.results) {
+        setImages(response.results);
+        toast.success(`Found ${response.results.length} matching images`);
       } else {
-        // Filter mode only
-        loadAllImages(objects.trim());
+        setImages([]);
+        toast.error('No images found matching your search');
       }
     } catch (error) {
-      console.error('Search/filter failed:', error);
-      toast.error('Search/filter failed. Please try again.');
+      console.error('Search failed:', error);
+      toast.error('Search failed. Please try again.');
     } finally {
       setSearchLoading(false);
     }
@@ -137,27 +133,17 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
   // Handle form submit
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleSearch(searchQuery, objectFilter);
+    handleSearch(searchQuery);
   };
 
   // Clear search and filters
   const clearSearch = () => {
     setSearchQuery('');
-    setObjectFilter('');
     setIsSearchMode(false);
     setIsFilterMode(false);
     loadAllImages();
   };
 
-  // Handle object filter
-  const handleObjectFilter = (objects: string) => {
-    setObjectFilter(objects);
-    if (searchQuery.trim()) {
-      handleSearch(searchQuery, objects);
-    } else {
-      handleSearch('', objects);
-    }
-  };
 
   // Load thumbnail for a single image
   const loadThumbnail = useCallback(async (imageId: string) => {
@@ -442,7 +428,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
                 )}
               </button>
               
-              {(searchQuery || objectFilter || isSearchMode || isFilterMode) && (
+              {(searchQuery || isSearchMode || isFilterMode) && (
                 <button
                   type="button"
                   onClick={clearSearch}
@@ -455,48 +441,48 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
 
           </div>
 
-          {/* Object Filter */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter by Objects (optional)
+          {/* Search Options */}
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={searchOptions.searchByContext}
+                  onChange={(e) => setSearchOptions(prev => ({ ...prev, searchByContext: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Search by context</span>
               </label>
-              <input
-                type="text"
-                value={objectFilter}
-                onChange={(e) => setObjectFilter(e.target.value)}
-                placeholder="Enter objects to filter by (e.g., cat, dog, person)"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Separate multiple objects with commas. Works in both search and browse modes.
-              </p>
               
-              {/* Common Object Tags */}
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <span className="text-xs text-gray-600 dark:text-gray-400">Quick filters:</span>
-                {['cat', 'dog', 'person', 'car', 'food', 'building', 'animal', 'tree'].map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => {
-                      setObjectFilter(tag);
-                      handleObjectFilter(tag);
-                    }}
-                    className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={searchOptions.searchByObjects}
+                  onChange={(e) => setSearchOptions(prev => ({ ...prev, searchByObjects: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Search by objects</span>
+              </label>
             </div>
-            <button
-              type="button"
-              onClick={() => handleObjectFilter(objectFilter)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            >
-              Filter
-            </button>
+            
+            {searchOptions.searchByContext && (
+              <div className="flex items-center space-x-2">
+                <label className="text-sm text-gray-700 dark:text-gray-300">Min similarity:</label>
+                <select
+                  value={searchOptions.minScore}
+                  onChange={(e) => setSearchOptions(prev => ({ ...prev, minScore: parseFloat(e.target.value) }))}
+                  className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                >
+                  <option value={0}>Any</option>
+                  <option value={0.1}>10%</option>
+                  <option value={0.2}>20%</option>
+                  <option value={0.3}>30%</option>
+                  <option value={0.5}>50%</option>
+                  <option value={0.7}>70%</option>
+                  <option value={0.9}>90%</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Advanced Options Toggle */}
@@ -512,7 +498,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
 
           {/* Advanced Search Options */}
           {showAdvanced && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Max Results
@@ -526,25 +512,6 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
                   <option value={10}>10 results</option>
                   <option value={20}>20 results</option>
                   <option value={50}>50 results</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Min Similarity
-                </label>
-                <select
-                  value={searchOptions.minScore}
-                  onChange={(e) => setSearchOptions(prev => ({ ...prev, minScore: parseFloat(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value={0}>Any similarity</option>
-                  <option value={0.1}>10% similarity</option>
-                  <option value={0.2}>20% similarity</option>
-                  <option value={0.3}>30% similarity</option>
-                  <option value={0.5}>50% similarity</option>
-                  <option value={0.7}>70% similarity</option>
-                  <option value={0.9}>90% similarity</option>
                 </select>
               </div>
 
