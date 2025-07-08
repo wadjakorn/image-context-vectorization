@@ -29,7 +29,9 @@ class ImageContextExtractor:
             caption = self.model_manager.generate_caption(
                 image, 
                 self.config.processing.max_caption_length, 
-                self.config.processing.num_beams
+                self.config.processing.num_beams,
+                self.config.processing.temperature,
+                self.config.processing.repetition_penalty
             )
             
             clip_features = self.model_manager.extract_clip_features(image)

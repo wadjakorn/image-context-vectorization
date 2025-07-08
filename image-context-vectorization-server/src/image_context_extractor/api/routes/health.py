@@ -162,8 +162,10 @@ async def get_model_status(extractor_instance = Depends(get_extractor_lazy)):
     """Get current model loading status without triggering loads."""
     try:
         status = extractor_instance.model_manager.get_model_status()
+        info = extractor_instance.model_manager.get_model_info()
         return {
             "models": status,
+            "model_info": info,
             "device": extractor_instance.config.model.device,
             "timestamp": datetime.now().isoformat()
         }

@@ -193,14 +193,52 @@ class ModelManager:
             'sentence_transformer': self._sentence_transformer is not None,
         }
 
-    def generate_caption(self, image: Image.Image, max_length: int = 100, num_beams: int = 5) -> str:
+    def get_model_info(self) -> dict:
+        """Get detailed model information including names and sources."""
+        blip_path = self.config.local_blip_model_path or self.config.blip_model_name
+        clip_path = self.config.local_clip_model_path or self.config.clip_model_name
+        st_path = self.config.local_sentence_transformer_path or self.config.sentence_transformer_model
+        
+        def get_source_info(path):
+            if path and ('/' in path and not path.startswith('/')):
+                return {"name": path, "source": "Hugging Face Hub"}
+            elif path and path.startswith('/'):
+                return {"name": path.split('/')[-1], "source": f"Local: {path}"}
+            else:
+                return {"name": path or "Unknown", "source": "Unknown"}
+        
+        return {
+            'blip': {
+                **get_source_info(blip_path),
+                'loaded': self._blip_model is not None and self._blip_processor is not None
+            },
+            'clip': {
+                **get_source_info(clip_path),
+                'loaded': self._clip_model is not None and self._clip_processor is not None
+            },
+            'sentence_transformer': {
+                **get_source_info(st_path),
+                'loaded': self._sentence_transformer is not None
+            },
+            'device': self.config.device
+        }
+
+    def generate_caption(self, image: Image.Image, max_length: int = 100, num_beams: int = 5, 
+                        temperature: float = 0.7, repetition_penalty: float = 1.2) -> str:
         try:
             inputs = self.blip_processor(image, return_tensors="pt")
             if self.config.device != "cpu":
                 inputs = {k: v.to(self.config.device) for k, v in inputs.items()}
             
             with torch.no_grad():
-                out = self.blip_model.generate(**inputs, max_length=max_length, num_beams=num_beams)
+                out = self.blip_model.generate(
+                    **inputs, 
+                    max_length=max_length, 
+                    num_beams=num_beams,
+                    temperature=temperature,
+                    repetition_penalty=repetition_penalty,
+                    do_sample=True
+                )
             
             caption = self.blip_processor.decode(out[0], skip_special_tokens=True)
             return caption

@@ -92,6 +92,8 @@ class DatabaseConfig:
 class ProcessingConfig:
     max_caption_length: int = 100
     num_beams: int = 5
+    temperature: float = 0.7
+    repetition_penalty: float = 1.2
     object_confidence_threshold: float = 0.1
     object_categories: List[str] = None
     supported_formats: List[str] = None
@@ -122,6 +124,8 @@ class ProcessingConfig:
         return cls(
             max_caption_length=int(os.getenv('MAX_CAPTION_LENGTH', '100')),
             num_beams=int(os.getenv('NUM_BEAMS', '5')),
+            temperature=float(os.getenv('TEMPERATURE', '0.7')),
+            repetition_penalty=float(os.getenv('REPETITION_PENALTY', '1.2')),
             object_confidence_threshold=float(os.getenv('OBJECT_CONFIDENCE_THRESHOLD', '0.1')),
             object_categories=object_categories,
             supported_formats=supported_formats

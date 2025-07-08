@@ -219,6 +219,8 @@ async def list_or_search_images(
     offset: int = 0,
     min_score: Optional[float] = None,
     include_metadata: bool = True,
+    search_by_context: bool = True,
+    search_by_objects: bool = True,
     extractor_instance = Depends(get_extractor_lazy)
 ):
     """List all processed images or search for specific images based on query.
@@ -234,6 +236,8 @@ async def list_or_search_images(
         offset: Offset for pagination (list mode only)
         min_score: Minimum similarity score for search results
         include_metadata: Include search metadata like score and distance
+        search_by_context: Whether to search by context/caption similarity
+        search_by_objects: Whether to search by detected objects
     """
     try:
         start_time = time.time()
@@ -252,24 +256,60 @@ async def list_or_search_images(
         
         if query:
             # Search mode: find similar images
-            # Request more results to account for filtering
-            search_limit = limit * 3 if object_filters else limit
-            results = extractor_instance.search_similar_images(
-                query,
-                n_results=search_limit
-            )
+            context_results = []
+            object_results = []
+            
+            # Search by context similarity if enabled
+            if search_by_context:
+                search_limit = limit * 3 if object_filters else limit
+                context_results = extractor_instance.search_similar_images(
+                    query,
+                    n_results=search_limit
+                )
+            
+            # Search by objects if enabled
+            if search_by_objects:
+                # Convert query to objects filter for object search
+                query_objects = [obj.strip().lower() for obj in query.split() if obj.strip()]
+                if query_objects:
+                    object_results = extractor_instance.get_all_images_data(limit=limit * 3)
+                    # Filter by query words in objects
+                    object_results = [
+                        img for img in object_results
+                        if any(query_obj in [obj.lower() for obj in img['objects']] for query_obj in query_objects)
+                    ]
+                    # Add distance and score for consistency
+                    for img in object_results:
+                        img['distance'] = 0.0
+                        img['score'] = 1.0
+            
+            # Combine results from both search types
+            combined_results = []
+            seen_ids = set()
+            
+            # Add context results first
+            for result in context_results:
+                if result['id'] not in seen_ids:
+                    combined_results.append(result)
+                    seen_ids.add(result['id'])
+            
+            # Add object results that aren't already included
+            for result in object_results:
+                if result['id'] not in seen_ids:
+                    combined_results.append(result)
+                    seen_ids.add(result['id'])
             
             image_infos = []
-            for result in results:
+            for result in combined_results:
                 # Apply object filter first
                 if not matches_object_filter(result['objects']):
                     continue
                 
                 # Calculate similarity score from distance
-                score = max(0.0, 1.0 - result['distance'])
+                score = max(0.0, 1.0 - result.get('distance', 0.0))
                 
-                # Apply minimum score filter if specified
-                if min_score is not None and score < min_score:
+                # Apply minimum score filter if specified and context search is enabled
+                if min_score is not None and search_by_context and score < min_score:
                     continue
                 
                 # Parse size from string format "1920x1080"
@@ -291,7 +331,7 @@ async def list_or_search_images(
                     caption=result['caption'],
                     objects=result['objects'],
                     score=score if include_metadata else None,
-                    distance=result['distance'] if include_metadata else None
+                    distance=result.get('distance', 0.0) if include_metadata else None
                 )
                 image_infos.append(image_info)
                 
