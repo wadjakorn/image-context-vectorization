@@ -162,6 +162,65 @@ class ImageContextExtractor:
     def get_all_images_data(self, limit: int = None, offset: int = 0) -> List[Dict[str, Any]]:
         """Get all processed images data with pagination"""
         return self.database.get_all_image_data(limit, offset)
+    
+    def process_external_directory(self, directory_path: str, force_reprocess: bool = False) -> Dict[str, Any]:
+        """Process all images in an external directory using the directory validator"""
+        try:
+            from ..utils.directory_validator import DirectoryValidator
+            
+            # Initialize validator with supported formats
+            validator = DirectoryValidator(self.config.processing.supported_formats)
+            
+            # Validate directory first
+            dir_info = validator.validate_directory(directory_path)
+            
+            if not dir_info.accessible:
+                raise ValueError(f"Directory is not accessible: {dir_info.error_message}")
+            
+            # Scan directory for image files
+            image_files = validator.scan_directory_safe(
+                directory_path,
+                recursive=self.config.directory.external_dir_recursive,
+                max_depth=self.config.directory.external_dir_max_depth,
+                follow_symlinks=self.config.directory.external_dir_follow_symlinks
+            )
+            
+            processed_ids = []
+            skipped_count = 0
+            failed_count = 0
+            
+            self.logger.info(f"Found {len(image_files)} image files in external directory: {directory_path}")
+            
+            for image_path in image_files:
+                try:
+                    if not force_reprocess and self.database.image_exists(image_path):
+                        self.logger.debug(f"Skipping already processed image: {image_path}")
+                        skipped_count += 1
+                        continue
+                    
+                    image_id = self.process_image(image_path, force_reprocess)
+                    processed_ids.append(image_id)
+                except Exception as e:
+                    self.logger.error(f"Failed to process {image_path}: {e}")
+                    failed_count += 1
+                    continue
+            
+            result = {
+                'directory_path': directory_path,
+                'directory_id': dir_info.id,
+                'total_files': len(image_files),
+                'processed': len(processed_ids),
+                'skipped': skipped_count,
+                'failed': failed_count,
+                'processed_ids': processed_ids
+            }
+            
+            self.logger.info(f"External directory processing complete: {result['processed']} processed, {result['skipped']} skipped, {result['failed']} failed")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error processing external directory {directory_path}: {e}")
+            raise
 
     def get_or_extract_image_features(self, image_path: str, force_reprocess: bool = False) -> Dict[str, Any]:
         """Get image features from database or extract if not cached"""

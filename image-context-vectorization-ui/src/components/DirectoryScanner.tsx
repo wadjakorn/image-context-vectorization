@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FolderIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { apiService } from '../services/api';
+import ExternalDirectories from './ExternalDirectories';
 
 interface ScanResult {
   total_files: number;
@@ -227,6 +228,11 @@ const DirectoryScanner: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+      
+      {/* External Directories Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <ExternalDirectories />
       </div>
     </div>
   );

@@ -51,6 +51,52 @@ export interface SearchResponse {
   message: string;
 }
 
+export interface ExternalDirectory {
+  id: string;
+  path: string;
+  name: string;
+  accessible: boolean;
+  exists: boolean;
+  readable: boolean;
+  last_checked: string;
+  image_count?: number;
+  supported_image_count?: number;
+  error_message?: string;
+}
+
+export interface ExternalDirectoriesResponse {
+  external_directories: ExternalDirectory[];
+}
+
+export interface DirectoryScanResponse {
+  directory_id: string;
+  path: string;
+  total_files: number;
+  image_files: string[];
+  scan_time: string;
+}
+
+export interface DirectoryProcessingResponse {
+  directory_id: string;
+  path: string;
+  total_files: number;
+  processed_files: number;
+  failed_files: number;
+  processing_time: string;
+  task_id?: string;
+}
+
+export interface ProcessingStatus {
+  status: 'idle' | 'processing' | 'completed' | 'error';
+  total_files?: number;
+  processed_files?: number;
+  failed_files?: number;
+  start_time?: string;
+  end_time?: string;
+  error_message?: string;
+  path?: string;
+}
+
 export interface UploadResponse {
   success: boolean;
   filename: string;
@@ -377,6 +423,37 @@ export const apiService = {
 
   async clearAllImages(): Promise<{ success: boolean; message: string }> {
     const response = await api.delete('/api/v1/images/database/clear');
+    return response.data;
+  },
+
+  // External Directories API
+  async getExternalDirectories(): Promise<ExternalDirectoriesResponse> {
+    const response = await api.get('/api/v1/directories/external');
+    return response.data;
+  },
+
+  async getExternalDirectory(directoryId: string): Promise<ExternalDirectory> {
+    const response = await api.get(`/api/v1/directories/external/${directoryId}`);
+    return response.data;
+  },
+
+  async scanExternalDirectory(directoryId: string): Promise<DirectoryScanResponse> {
+    const response = await api.post(`/api/v1/directories/scan-external/${directoryId}`);
+    return response.data;
+  },
+
+  async processExternalDirectory(directoryId: string): Promise<DirectoryProcessingResponse> {
+    const response = await api.post(`/api/v1/directories/process-external/${directoryId}`);
+    return response.data;
+  },
+
+  async getDirectoryProcessingStatus(directoryId: string): Promise<ProcessingStatus> {
+    const response = await api.get(`/api/v1/directories/processing-status/${directoryId}`);
+    return response.data;
+  },
+
+  async getAllProcessingStatus(): Promise<{ processing_tasks: Record<string, ProcessingStatus> }> {
+    const response = await api.get('/api/v1/directories/processing-status');
     return response.data;
   },
 };

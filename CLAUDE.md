@@ -129,7 +129,8 @@ Image → BLIP (caption) → CLIP (objects/features) → SentenceTransformer (em
 - `src/components/ImageUpload.tsx`: Drag-and-drop upload with progress tracking
 - `src/components/ModelManagement.tsx`: AI model preloading and status monitoring
 - `src/components/ProcessingStatus.tsx`: Real-time task monitoring
-- `src/components/DirectoryScanner.tsx`: Directory scanning functionality
+- `src/components/DirectoryScanner.tsx`: Directory scanning functionality for uploads and external directories
+- `src/components/ExternalDirectories.tsx`: External directory management with scanning, processing, and status monitoring
 - `src/components/TimeoutIndicator.tsx`: Timeout status indicator
 
 ### Critical Architecture Patterns
@@ -145,6 +146,11 @@ curl -X POST http://localhost:8000/api/v1/models/preload
 - **Search mode**: `GET /api/v1/images/?query=cats&limit=5`
 
 **Configuration Factory Pattern**: Use `get_config()` for environment-specific settings from `.env` files
+
+**External Directories Pattern**: New feature allowing processing of images from user-configured directories:
+- **Backend**: Directory validation with security checks, path sanitization, and recursive scanning
+- **Frontend**: Real-time status monitoring, progress tracking, and batch processing controls
+- **API Endpoints**: `/api/v1/directories/external/*` for listing, scanning, and processing external directories
 
 **Frontend State Management**: 
 - Uses `Map<string, ImageThumbnail>` with `useRef` for tracking loaded images
@@ -167,6 +173,12 @@ COLLECTION_NAME=image_contexts
 # Processing configuration
 OBJECT_CONFIDENCE_THRESHOLD=0.15
 MAX_CAPTION_LENGTH=150
+
+# External directories (comma-separated paths)
+EXTERNAL_DIRECTORIES=/Users/john/Pictures,/Users/john/Desktop/Images,/shared/photos
+EXTERNAL_DIR_RECURSIVE=true
+EXTERNAL_DIR_MAX_DEPTH=3
+EXTERNAL_DIR_FOLLOW_SYMLINKS=false
 ```
 
 ### Frontend (.env in UI directory)

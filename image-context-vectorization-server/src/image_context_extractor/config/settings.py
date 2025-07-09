@@ -89,6 +89,33 @@ class DatabaseConfig:
 
 
 @dataclass
+class DirectoryConfig:
+    external_directories: List[str] = None
+    external_dir_recursive: bool = True
+    external_dir_max_depth: int = 3
+    external_dir_follow_symlinks: bool = False
+    
+    def __post_init__(self):
+        if self.external_directories is None:
+            self.external_directories = []
+    
+    @classmethod
+    def from_env(cls) -> 'DirectoryConfig':
+        """Create DirectoryConfig from environment variables"""
+        # Parse external directories from comma-separated string
+        external_directories = []
+        if os.getenv('EXTERNAL_DIRECTORIES'):
+            external_directories = [dir.strip() for dir in os.getenv('EXTERNAL_DIRECTORIES').split(',') if dir.strip()]
+        
+        return cls(
+            external_directories=external_directories,
+            external_dir_recursive=os.getenv('EXTERNAL_DIR_RECURSIVE', 'true').lower() == 'true',
+            external_dir_max_depth=int(os.getenv('EXTERNAL_DIR_MAX_DEPTH', '3')),
+            external_dir_follow_symlinks=os.getenv('EXTERNAL_DIR_FOLLOW_SYMLINKS', 'false').lower() == 'true'
+        )
+
+
+@dataclass
 class ProcessingConfig:
     max_caption_length: int = 100
     num_beams: int = 5
@@ -137,6 +164,7 @@ class Config:
     model: ModelConfig = None
     database: DatabaseConfig = None
     processing: ProcessingConfig = None
+    directory: DirectoryConfig = None
 
     def __post_init__(self):
         if self.model is None:
@@ -145,6 +173,8 @@ class Config:
             self.database = DatabaseConfig()
         if self.processing is None:
             self.processing = ProcessingConfig()
+        if self.directory is None:
+            self.directory = DirectoryConfig()
     
     @classmethod
     def from_env(cls, env_file: str = '.env') -> 'Config':
@@ -156,7 +186,8 @@ class Config:
         return cls(
             model=ModelConfig.from_env(),
             database=DatabaseConfig.from_env(),
-            processing=ProcessingConfig.from_env()
+            processing=ProcessingConfig.from_env(),
+            directory=DirectoryConfig.from_env()
         )
     
     @classmethod

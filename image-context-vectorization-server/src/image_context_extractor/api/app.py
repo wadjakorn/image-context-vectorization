@@ -24,6 +24,7 @@ from .routes import (
     health_router,
     websocket_router,
 )
+from .routes.external_directories import router as external_directories_router
 from .models.responses import ErrorResponse
 from ..config.settings import get_config
 from ..utils.logging_utils import setup_logging
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(images_router)
     app.include_router(duplicates_router)
     app.include_router(directories_router)
+    app.include_router(external_directories_router, prefix="/api/v1/directories")
     app.include_router(websocket_router)
     
     # Static files (for serving uploaded images, etc.)
