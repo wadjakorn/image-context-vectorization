@@ -67,19 +67,48 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
     }
   };
 
-  // Fetch all tasks
+  // Fetch all tasks (including external directory processing tasks)
   const fetchAllTasks = async () => {
     try {
+      // Fetch regular tasks
       const tasksData = await apiService.listTasks();
-      setAllTasks(tasksData.tasks || []);
+      const regularTasks = tasksData.tasks || [];
+      
+      // Fetch external directory processing tasks
+      let externalTasks: Task[] = [];
+      try {
+        const externalTasksData = await apiService.getAllProcessingStatus();
+        externalTasks = Object.entries(externalTasksData.processing_tasks || {}).map(([directoryId, taskData]) => ({
+          task_id: directoryId,
+          status: taskData.status === 'idle' ? 'queued' : 
+                 taskData.status === 'processing' ? 'processing' :
+                 taskData.status === 'completed' ? 'completed' : 'failed',
+          progress: taskData.total_files ? 
+                   Math.round((taskData.processed_files || 0) / taskData.total_files * 100) : 0,
+          message: `External directory processing: ${taskData.path || directoryId}`,
+          result: taskData.status === 'completed' ? {
+            processed_files: taskData.processed_files,
+            failed_files: taskData.failed_files,
+            total_files: taskData.total_files
+          } : undefined,
+          error: taskData.error_message,
+          created_at: taskData.start_time || new Date().toISOString(),
+          updated_at: taskData.end_time || new Date().toISOString()
+        }));
+      } catch (extErr) {
+        console.warn('Failed to fetch external directory tasks:', extErr);
+      }
+      
+      // Combine all tasks
+      const allTasksList = [...regularTasks, ...externalTasks];
+      setAllTasks(allTasksList);
       
       // Calculate stats
-      const tasks = tasksData.tasks || [];
       const newStats: ProcessingStats = {
-        totalTasks: tasks.length,
-        activeTasks: tasks.filter((t: Task) => t.status === 'processing' || t.status === 'queued').length,
-        completedTasks: tasks.filter((t: Task) => t.status === 'completed').length,
-        failedTasks: tasks.filter((t: Task) => t.status === 'failed').length,
+        totalTasks: allTasksList.length,
+        activeTasks: allTasksList.filter((t: Task) => t.status === 'processing' || t.status === 'queued').length,
+        completedTasks: allTasksList.filter((t: Task) => t.status === 'completed').length,
+        failedTasks: allTasksList.filter((t: Task) => t.status === 'failed').length,
       };
       setStats(newStats);
     } catch (err) {
