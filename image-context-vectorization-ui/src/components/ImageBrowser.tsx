@@ -52,10 +52,6 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [searchOptions, setSearchOptions] = useState({
     limit: 20,
-    minScore: 0.1,
-    includeMetadata: true,
-    searchByContext: true,
-    searchByObjects: true
   });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -102,11 +98,6 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
       const response = await apiService.searchImages(
         query,
         searchOptions.limit,
-        searchOptions.includeMetadata,
-        searchOptions.searchByContext ? searchOptions.minScore : undefined,
-        undefined,
-        searchOptions.searchByContext,
-        searchOptions.searchByObjects
       );
       
       if (response && response.results) {
@@ -318,7 +309,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
   };
 
   const formatScore = (score: number) => {
-    return (score * 100).toFixed(1);
+    return `${score.toFixed(1)}%`;
   };
 
   const getThumbnail = (imageId: string): ImageThumbnail | undefined => {
@@ -442,49 +433,6 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
           </div>
 
           {/* Search Options */}
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={searchOptions.searchByContext}
-                  onChange={(e) => setSearchOptions(prev => ({ ...prev, searchByContext: e.target.checked }))}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Search by context</span>
-              </label>
-              
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={searchOptions.searchByObjects}
-                  onChange={(e) => setSearchOptions(prev => ({ ...prev, searchByObjects: e.target.checked }))}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Search by objects</span>
-              </label>
-            </div>
-            
-            {searchOptions.searchByContext && (
-              <div className="flex items-center space-x-2">
-                <label className="text-sm text-gray-700 dark:text-gray-300">Min similarity:</label>
-                <select
-                  value={searchOptions.minScore}
-                  onChange={(e) => setSearchOptions(prev => ({ ...prev, minScore: parseFloat(e.target.value) }))}
-                  className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                >
-                  <option value={0}>Any</option>
-                  <option value={0.1}>10%</option>
-                  <option value={0.2}>20%</option>
-                  <option value={0.3}>30%</option>
-                  <option value={0.5}>50%</option>
-                  <option value={0.7}>70%</option>
-                  <option value={0.9}>90%</option>
-                </select>
-              </div>
-            )}
-          </div>
-
           {/* Advanced Options Toggle */}
           <div className="flex items-center justify-between">
             <button
@@ -513,18 +461,6 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
                   <option value={20}>20 results</option>
                   <option value={50}>50 results</option>
                 </select>
-              </div>
-
-              <div className="flex items-end">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={searchOptions.includeMetadata}
-                    onChange={(e) => setSearchOptions(prev => ({ ...prev, includeMetadata: e.target.checked }))}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Include metadata</span>
-                </label>
               </div>
             </div>
           )}
@@ -636,7 +572,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
                       </span>
                       {isSearchMode && (
                         <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                          {formatScore(image.score)}%
+                          {formatScore(image.score)}
                         </span>
                       )}
                     </div>
@@ -714,7 +650,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
                       </h3>
                       {isSearchMode && (
                         <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                          {formatScore(image.score)}%
+                          {formatScore(image.score)}
                         </span>
                       )}
                     </div>
@@ -842,7 +778,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
                         <div className="flex justify-between">
                           <span className="text-gray-600 dark:text-gray-400">Match Score:</span>
                           <span className="text-green-600 dark:text-green-400 font-medium">
-                            {formatScore(selectedImage.image.score)}%
+                            {formatScore(selectedImage.image.score)}
                           </span>
                         </div>
                       )}
@@ -907,7 +843,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
                         Additional Metadata
                       </h4>
                       <div className="text-xs text-gray-600 dark:text-gray-400 font-mono bg-gray-50 dark:bg-gray-900 p-2 rounded">
-                        <pre>{JSON.stringify(selectedImage.image.metadata, null, 2)}</pre>
+                        <pre className="whitespace-pre-wrap">{JSON.stringify(selectedImage.image.metadata, null, 2)}</pre>
                       </div>
                     </div>
                   )}

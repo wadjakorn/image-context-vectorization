@@ -229,7 +229,7 @@ export const apiService = {
       caption: image.caption,
       objects: image.objects,
       distance: 0, // Not applicable for list view
-      score: 1.0, // Set to 100% for list view
+      score: 0.0,
       metadata: {
         filename: image.filename,
         size: image.size,
@@ -300,27 +300,12 @@ export const apiService = {
   async searchImages(
     query: string,
     nResults = 5,
-    includeMetadata = true,
-    minScore?: number,
-    objects?: string,
-    searchByContext = true,
-    searchByObjects = true
   ): Promise<SearchResponse> {
     // Use the new unified endpoint for search
     const params: any = {
       query,
       limit: nResults,
-      include_metadata: includeMetadata,
-      search_by_context: searchByContext,
-      search_by_objects: searchByObjects,
     };
-    
-    if (minScore !== undefined && searchByContext) {
-      params.min_score = minScore;
-    }
-    if (objects) {
-      params.objects = objects;
-    }
     
     const response = await api.get('/api/v1/images/', {
       params,
@@ -338,7 +323,7 @@ export const apiService = {
         caption: image.caption,
         objects: image.objects,
         distance: image.distance || 0,
-        score: image.score || 1.0,
+        score: image.score || 0.0,
         metadata: {
           filename: image.filename,
           size: image.size,

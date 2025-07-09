@@ -1,4 +1,4 @@
-import os
+# NOTE: os import removed as it's not used
 import logging
 from typing import List, Dict, Any
 # from PIL import Image
@@ -18,7 +18,7 @@ class ImageContextExtractor:
         self.logger = logging.getLogger(__name__)
         
         self.model_manager = ModelManager(config.model)
-        self.database = VectorDatabase(config.database)
+        self.database = VectorDatabase(config.database, config.model)
         self.image_processor = ImageProcessor(config.processing)
         
     def extract_image_features(self, image_path: str) -> Dict[str, Any]:
@@ -45,7 +45,7 @@ class ImageContextExtractor:
             )
             
             combined_text = f"{caption}. Objects: {', '.join(objects)}"
-            embedding = self.model_manager.create_embeddings(combined_text)
+            # NOTE: Embedding creation removed - now handled by ChromaDB embedding function
             
             return {
                 'image_path': image_path,
@@ -53,8 +53,8 @@ class ImageContextExtractor:
                 'clip_features': clip_features,
                 'metadata': metadata,
                 'objects': objects,
-                'combined_text': combined_text,
-                'embedding': embedding
+                'combined_text': combined_text
+                # NOTE: 'embedding' field removed - now handled by ChromaDB embedding function
             }
         except Exception as e:
             self.logger.error(f"Error extracting features from {image_path}: {e}")
@@ -94,8 +94,8 @@ class ImageContextExtractor:
     def search_similar_images(self, query: str, n_results: int = 5) -> List[Dict]:
         """Search for similar images using text query"""
         try:
-            query_embedding = self.model_manager.create_embeddings(query)
-            results = self.database.search_similar(query_embedding, n_results)
+            # NOTE: Embedding creation removed - ChromaDB handles embedding generation from query text
+            results = self.database.search_similar(query, n_results)
             
             self.logger.info(f"Found {len(results)} similar images for query: '{query}'")
             return results

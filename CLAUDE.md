@@ -13,8 +13,8 @@ The system uses BLIP (image captioning), CLIP (object detection), and SentenceTr
 ## Development Rules "IMPORTANT!"
 
 - **Do not coding until user allow to start**: Always provide a brief summary of the intended changes or features. let user approve before starting implementation.
-- **Be simple and do not over-engineer**: Focus on clear, maintainable code. Avoid unnecessary complexity.
-- **Do not add new features**: Stick to the existing functionality. Do not introduce new features unless explicitly requested.
+- **Do not add new features**: Stick to the existing functionality. Do not introduce new features unless user requested.
+- **Use Gemini CLI passively**: To minimize context window usage, use the Gemini CLI with the `-p` flag for code analysis and verification tasks.
 
 ## Development Commands
 
@@ -125,10 +125,12 @@ Image → BLIP (caption) → CLIP (objects/features) → SentenceTransformer (em
 - `src/services/api.ts`: **Centralized API client** with TypeScript interfaces for all backend endpoints
 
 **Core Components**:
-- `src/components/ImageBrowser.tsx`: **700+ line unified interface** combining search and gallery functionality
+- `src/components/ImageBrowser.tsx`: **Unified interface** combining search and gallery functionality
 - `src/components/ImageUpload.tsx`: Drag-and-drop upload with progress tracking
 - `src/components/ModelManagement.tsx`: AI model preloading and status monitoring
 - `src/components/ProcessingStatus.tsx`: Real-time task monitoring
+- `src/components/DirectoryScanner.tsx`: Directory scanning functionality
+- `src/components/TimeoutIndicator.tsx`: Timeout status indicator
 
 ### Critical Architecture Patterns
 
@@ -140,8 +142,7 @@ curl -X POST http://localhost:8000/api/v1/models/preload
 
 **Unified API Design**: The main images endpoint serves dual purposes:
 - **List mode**: `GET /api/v1/images/?limit=20&offset=0`
-- **Search mode**: `GET /api/v1/images/?query=cats&limit=5`  
-- **Object filtering**: `GET /api/v1/images/?objects=cat,dog&limit=10`
+- **Search mode**: `GET /api/v1/images/?query=cats&limit=5`
 
 **Configuration Factory Pattern**: Use `get_config()` for environment-specific settings from `.env` files
 
@@ -182,32 +183,6 @@ REACT_APP_MODEL_PRELOAD_TIMEOUT=180000
 REACT_APP_HEALTH_TIMEOUT=10000
 ```
 
-## Performance Considerations
-
-### Model Loading Performance
-- **First request**: ~3.5 seconds (model loading on CPU)
-- **Subsequent requests**: ~0.015 seconds (350x faster)
-- **Memory usage**: ~2.2GB RAM for all models
-- **GPU acceleration**: Set `DEVICE=cuda` for faster inference
-
-### API Performance Optimization
-- Use `get_image_data_by_id()` for cached lookups (100-350x performance improvement)
-- Preload models before processing batches
-- Database caching prevents reprocessing duplicate images
-
-### Frontend Performance Optimization
-- **Lazy thumbnail loading**: Images load on-demand via `/api/v1/images/download/{id}`
-- **Request deduplication**: Prevents duplicate API calls during state changes
-- **Memory cleanup**: Automatic blob URL revocation
-- **useCallback optimization**: Critical functions memoized to prevent re-renders
-
-## API Documentation
-
-When the backend is running:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **Health check**: http://localhost:8000/api/v1/health
-
 ## Development Workflow
 
 ### Starting Development Environment
@@ -216,39 +191,173 @@ When the backend is running:
 3. **Start Frontend**: `cd image-context-vectorization-ui && npm start`
 4. **Access UI**: http://localhost:3000 (connects to API on localhost:8000)
 
-### Testing Changes
-Always test both modes of the unified API endpoint:
+# Using Gemini CLI for Large Codebase Analysis
+
+When analyzing large codebases or multiple files that might exceed context limits, use the Gemini CLI with its massive
+context window. Use `gemini -p` to leverage Google Gemini's large context capacity.
+
+## File and Directory Inclusion Syntax
+
+Use the `@` syntax to include files and directories in your Gemini prompts. The paths should be relative to WHERE you run the
+gemini command:
+
+### Examples:
+
+**Single file analysis:**
 ```bash
-# Test listing
-curl "http://localhost:8000/api/v1/images/?limit=5"
+gemini -p "@src/main.py Explain this file's purpose and structure"
 
-# Test search  
-curl "http://localhost:8000/api/v1/images/?query=cats&limit=3"
+Multiple files:
+gemini -p "@package.json @src/index.js Analyze the dependencies used in the code"
 
-# Test object filtering
-curl "http://localhost:8000/api/v1/images/?objects=cat,dog&limit=5"
-```
+Entire directory:
+gemini -p "@src/ Summarize the architecture of this codebase"
 
-### Model Management
-- **Download models locally**: `python scripts/model_utils.py --download-all`
-- **Check model status**: `image-context-extractor test-models --preload`
-- **Preload via API**: `curl -X POST http://localhost:8000/api/v1/models/preload`
+Multiple directories:
+gemini -p "@src/ @tests/ Analyze test coverage for the source code"
 
-## Important Notes
+Current directory and subdirectories:
+gemini -p "@./ Give me an overview of this entire project"
 
-### Error Handling
-- Backend preserves original HTTP status codes (not generic 500s)
-- Frontend includes operation-specific timeouts with visual indicators
-- ChromaDB operations include proper error recovery
+#
+Or use --all_files flag:
+gemini --all_files -p "Analyze the project structure and dependencies"
 
-### File Support
-- **Supported formats**: PNG, JPG, JPEG, GIF, BMP, WebP
-- **Upload limits**: 10MB per file, 10 files per batch
-- **Processing**: Automatic AI processing on upload (configurable)
+Implementation Verification Examples
 
-### Database Operations
-- Check for duplicates: `extractor_instance.is_image_processed(image_path)`
-- Vector similarity search with configurable thresholds
-- Cached metadata for performance optimization
+Check if a feature is implemented:
+gemini -p "@src/ @lib/ Has dark mode been implemented in this codebase? Show me the relevant files and functions"
 
-This architecture provides a comprehensive, scalable system for AI-powered image management with multiple deployment options and extensive performance optimizations.
+Verify authentication implementation:
+gemini -p "@src/ @middleware/ Is JWT authentication implemented? List all auth-related endpoints and middleware"
+
+Check for specific patterns:
+gemini -p "@src/ Are there any React hooks that handle WebSocket connections? List them with file paths"
+
+Verify error handling:
+gemini -p "@src/ @api/ Is proper error handling implemented for all API endpoints? Show examples of try-catch blocks"
+
+Check for rate limiting:
+gemini -p "@backend/ @middleware/ Is rate limiting implemented for the API? Show the implementation details"
+
+Verify caching strategy:
+gemini -p "@src/ @lib/ @services/ Is Redis caching implemented? List all cache-related functions and their usage"
+
+Check for specific security measures:
+gemini -p "@src/ @api/ Are SQL injection protections implemented? Show how user inputs are sanitized"
+
+Verify test coverage for features:
+gemini -p "@src/payment/ @tests/ Is the payment processing module fully tested? List all test cases"
+
+When to Use Gemini CLI
+
+Use gemini -p when:
+- Analyzing entire codebases or large directories
+- Comparing multiple large files
+- Need to understand project-wide patterns or architecture
+- Current context window is insufficient for the task
+- Working with files totaling more than 100KB
+- Verifying if specific features, patterns, or security measures are implemented
+- Checking for the presence of certain coding patterns across the entire codebase
+
+Important Notes
+
+- Paths in @ syntax are relative to your current working directory when invoking gemini
+- The CLI will include file contents directly in the context
+- No need for --yolo flag for read-only analysis
+- Gemini's context window can handle entire codebases that would overflow Claude's context
+- When checking implementations, be specific about what you're looking for to get accurate results # Using Gemini CLI for Large Codebase Analysis
+
+
+When analyzing large codebases or multiple files that might exceed context limits, use the Gemini CLI with its massive
+context window. Use `gemini -p` to leverage Google Gemini's large context capacity.
+
+
+## File and Directory Inclusion Syntax
+
+
+Use the `@` syntax to include files and directories in your Gemini prompts. The paths should be relative to WHERE you run the
+gemini command:
+
+
+### Examples:
+
+
+**Single file analysis:**
+```bash
+gemini -p "@src/main.py Explain this file's purpose and structure"
+
+
+Multiple files:
+gemini -p "@package.json @src/index.js Analyze the dependencies used in the code"
+
+
+Entire directory:
+gemini -p "@src/ Summarize the architecture of this codebase"
+
+
+Multiple directories:
+gemini -p "@src/ @tests/ Analyze test coverage for the source code"
+
+
+Current directory and subdirectories:
+gemini -p "@./ Give me an overview of this entire project"
+# Or use --all_files flag:
+gemini --all_files -p "Analyze the project structure and dependencies"
+
+
+Implementation Verification Examples
+
+
+Check if a feature is implemented:
+gemini -p "@src/ @lib/ Has dark mode been implemented in this codebase? Show me the relevant files and functions"
+
+
+Verify authentication implementation:
+gemini -p "@src/ @middleware/ Is JWT authentication implemented? List all auth-related endpoints and middleware"
+
+
+Check for specific patterns:
+gemini -p "@src/ Are there any React hooks that handle WebSocket connections? List them with file paths"
+
+
+Verify error handling:
+gemini -p "@src/ @api/ Is proper error handling implemented for all API endpoints? Show examples of try-catch blocks"
+
+
+Check for rate limiting:
+gemini -p "@backend/ @middleware/ Is rate limiting implemented for the API? Show the implementation details"
+
+
+Verify caching strategy:
+gemini -p "@src/ @lib/ @services/ Is Redis caching implemented? List all cache-related functions and their usage"
+
+
+Check for specific security measures:
+gemini -p "@src/ @api/ Are SQL injection protections implemented? Show how user inputs are sanitized"
+
+
+Verify test coverage for features:
+gemini -p "@src/payment/ @tests/ Is the payment processing module fully tested? List all test cases"
+
+
+When to Use Gemini CLI
+
+
+Use gemini -p when:
+- Analyzing entire codebases or large directories
+- Comparing multiple large files
+- Need to understand project-wide patterns or architecture
+- Current context window is insufficient for the task
+- Working with files totaling more than 100KB
+- Verifying if specific features, patterns, or security measures are implemented
+- Checking for the presence of certain coding patterns across the entire codebase
+
+
+Important Notes
+- Paths in @ syntax are relative to your current working directory when invoking gemini
+- The CLI will include file contents directly in the context
+- No need for --yolo flag for read-only analysis
+- Gemini's context window can handle entire codebases that would overflow Claude's context
+- When checking implementations, be specific about what you're looking for to get accurate results
+

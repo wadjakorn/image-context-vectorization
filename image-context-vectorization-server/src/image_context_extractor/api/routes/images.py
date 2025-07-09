@@ -214,104 +214,36 @@ async def download_image(
 @router.get("/", response_model=List[ImageInfo])
 async def list_or_search_images(
     query: Optional[str] = None,
-    objects: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
-    min_score: Optional[float] = None,
-    include_metadata: bool = True,
-    search_by_context: bool = True,
-    search_by_objects: bool = True,
     extractor_instance = Depends(get_extractor_lazy)
 ):
     """List all processed images or search for specific images based on query.
     
     - If no query provided: Returns paginated list of all processed images
     - If query provided: Returns search results for similar images
-    - Objects filter can be used in both modes to filter by detected objects
     
     Args:
         query: Optional search query for similarity search
-        objects: Optional comma-separated list of objects to filter by (e.g., "cat,dog,person")
         limit: Number of results to return
         offset: Offset for pagination (list mode only)
-        min_score: Minimum similarity score for search results
-        include_metadata: Include search metadata like score and distance
-        search_by_context: Whether to search by context/caption similarity
-        search_by_objects: Whether to search by detected objects
     """
     try:
         start_time = time.time()
         
-        # Parse objects filter
-        object_filters = []
-        if objects:
-            object_filters = [obj.strip().lower() for obj in objects.split(',') if obj.strip()]
-        
-        def matches_object_filter(image_objects):
-            """Check if image objects match the filter criteria."""
-            if not object_filters:
-                return True
-            image_objects_lower = [obj.lower() for obj in image_objects]
-            return any(filter_obj in image_objects_lower for filter_obj in object_filters)
         
         if query:
-            # Search mode: find similar images
-            context_results = []
-            object_results = []
-            
-            # Search by context similarity if enabled
-            if search_by_context:
-                search_limit = limit * 3 if object_filters else limit
-                context_results = extractor_instance.search_similar_images(
+            results = extractor_instance.search_similar_images(
                     query,
-                    n_results=search_limit
+                    n_results=limit
                 )
             
-            # Search by objects if enabled
-            if search_by_objects:
-                # Convert query to objects filter for object search
-                query_objects = [obj.strip().lower() for obj in query.split() if obj.strip()]
-                if query_objects:
-                    object_results = extractor_instance.get_all_images_data(limit=limit * 3)
-                    # Filter by query words in objects (exact match)
-                    object_results = [
-                        img for img in object_results
-                        if any(query_obj == obj.lower() for query_obj in query_objects for obj in img['objects'])
-                    ]
-                    # Add distance and score for consistency
-                    for img in object_results:
-                        img['distance'] = 0.0
-                        img['score'] = 1.0
-            
-            # Combine results from both search types
-            combined_results = []
-            seen_ids = set()
-            
-            # Add context results first
-            for result in context_results:
-                if result['id'] not in seen_ids:
-                    combined_results.append(result)
-                    seen_ids.add(result['id'])
-            
-            # Add object results that aren't already included
-            for result in object_results:
-                if result['id'] not in seen_ids:
-                    combined_results.append(result)
-                    seen_ids.add(result['id'])
+            # Search mode: find similar images
             
             image_infos = []
-            for result in combined_results:
-                # Apply object filter first
-                if not matches_object_filter(result['objects']):
-                    continue
-                
+            for result in results:
                 # Calculate similarity score from distance
-                score = max(0.0, 1.0 - result.get('distance', 0.0))
-                
-                # Apply minimum score filter only to context search results, not object search results
-                is_object_match = result.get('distance', 0.0) == 0.0  # Object matches have distance = 0.0
-                if min_score is not None and search_by_context and not is_object_match and score < min_score:
-                    continue
+                score = 100 * max(0.0, 2.0 - result.get('distance', 2.0))
                 
                 # Parse size from string format "1920x1080"
                 size_parts = result.get('size', '0x0').split('x')
@@ -331,8 +263,8 @@ async def list_or_search_images(
                     format=result.get('format', ''),
                     caption=result['caption'],
                     objects=result['objects'],
-                    score=score if include_metadata else None,
-                    distance=result.get('distance', 0.0) if include_metadata else None
+                    score=score,
+                    distance=result.get('distance', 0.0)
                 )
                 image_infos.append(image_info)
                 
@@ -342,26 +274,12 @@ async def list_or_search_images(
                 
         else:
             # List mode: get all images with pagination
-            # If objects filter is specified, get more data to account for filtering
-            fetch_limit = limit * 2 if object_filters else limit
-            fetch_offset = offset if not object_filters else 0
-            
-            all_image_data = extractor_instance.get_all_images_data(limit=fetch_limit, offset=fetch_offset)
+            all_image_data = extractor_instance.get_all_images_data(limit=limit, offset=offset)
             
             image_infos = []
-            processed_count = 0
-            skipped_for_offset = 0
             
             for image_data in all_image_data:
                 try:
-                    # Apply object filter first
-                    if not matches_object_filter(image_data['objects']):
-                        continue
-                    
-                    # Handle pagination when using object filter
-                    if object_filters and skipped_for_offset < offset:
-                        skipped_for_offset += 1
-                        continue
                     
                     # Parse size from string format "1920x1080"
                     size_parts = image_data['size'].split('x')
@@ -383,11 +301,6 @@ async def list_or_search_images(
                         objects=image_data['objects']
                     )
                     image_infos.append(image_info)
-                    processed_count += 1
-                    
-                    # Stop when we have enough results
-                    if processed_count >= limit:
-                        break
                     
                 except Exception as e:
                     logger.warning(f"Error processing cached image data: {e}")

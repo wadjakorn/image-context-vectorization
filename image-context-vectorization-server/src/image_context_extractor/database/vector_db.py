@@ -1,4 +1,4 @@
-import os
+# NOTE: os import removed as it's not used
 import chromadb
 import json
 import hashlib
@@ -6,21 +6,41 @@ import numpy as np
 from typing import List, Dict, Any
 import logging
 
-from ..config.settings import DatabaseConfig
+from ..config.settings import DatabaseConfig, ModelConfig
 from ..utils.chromadb_utils import setup_chromadb
+from .embedding_function import CustomSentenceTransformerEmbeddingFunction
 
 # Ensure ChromaDB telemetry is disabled
 setup_chromadb()
 
 
 class VectorDatabase:
-    def __init__(self, config: DatabaseConfig):
+    def __init__(self, config: DatabaseConfig, model_config: ModelConfig = None):
         self.config = config
+        self.model_config = model_config
         self.logger = logging.getLogger(__name__)
         
         try:
             self.client = chromadb.PersistentClient(path=config.db_path)
-            self.collection = self.client.get_or_create_collection(config.collection_name)
+            
+            # Create custom embedding function if model config is provided
+            if model_config:
+                model_path = model_config.local_sentence_transformer_path or model_config.sentence_transformer_model
+                embedding_function = CustomSentenceTransformerEmbeddingFunction(
+                    model_name=model_path,
+                    device=model_config.device,
+                    cache_folder=model_config.cache_dir
+                )
+                self.collection = self.client.get_or_create_collection(
+                    name=config.collection_name,
+                    embedding_function=embedding_function
+                )
+                self.logger.info(f"Created collection with custom embedding function: {model_path}")
+            else:
+                # Fallback to default embedding function (for backward compatibility)
+                self.collection = self.client.get_or_create_collection(config.collection_name)
+                self.logger.warning("Using default embedding function - consider providing model_config")
+            
             self.logger.info(f"Connected to database at {config.db_path}")
         except Exception as e:
             self.logger.error(f"Error initializing database: {e}")
@@ -63,8 +83,8 @@ class VectorDatabase:
                 'format': image_features['metadata']['format']
             }
             
+            # ChromaDB will automatically generate embeddings from documents using our custom embedding function
             self.collection.add(
-                embeddings=[image_features['embedding'].tolist()],
                 documents=[image_features['combined_text']],
                 metadatas=[metadata],
                 ids=[image_id]
@@ -76,10 +96,11 @@ class VectorDatabase:
             self.logger.error(f"Error storing image data: {e}")
             raise
 
-    def search_similar(self, query_embedding: np.ndarray, n_results: int = 5) -> List[Dict]:
+    def search_similar(self, query_text: str, n_results: int = 5) -> List[Dict]:
         try:
+            # ChromaDB will automatically generate embeddings from query_texts using our custom embedding function
             results = self.collection.query(
-                query_embeddings=[query_embedding.tolist()],
+                query_texts=[query_text],
                 n_results=n_results
             )
             

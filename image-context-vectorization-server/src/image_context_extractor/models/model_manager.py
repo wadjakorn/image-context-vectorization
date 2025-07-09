@@ -3,7 +3,7 @@ import numpy as np
 import time
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from transformers import CLIPProcessor, CLIPModel
-from sentence_transformers import SentenceTransformer
+# NOTE: SentenceTransformer import removed - now handled by ChromaDB embedding function
 from PIL import Image
 from typing import List, Optional
 import logging
@@ -20,7 +20,7 @@ class ModelManager:
         self._blip_model = None
         self._clip_processor = None
         self._clip_model = None
-        self._sentence_transformer = None
+        # NOTE: _sentence_transformer removed - now handled by ChromaDB embedding function
 
     @property
     def blip_processor(self):
@@ -92,22 +92,8 @@ class ModelManager:
             self.logger.info(f"✅ CLIP model loaded in {load_time:.2f} seconds")
         return self._clip_model
 
-    @property
-    def sentence_transformer(self):
-        if self._sentence_transformer is None:
-            model_path = self.config.local_sentence_transformer_path or self.config.sentence_transformer_model
-            self.logger.info(f"🔄 Loading Sentence Transformer from: {model_path}")
-            start_time = time.time()
-            
-            kwargs = {}
-            if self.config.cache_dir:
-                kwargs['cache_folder'] = self.config.cache_dir
-            
-            self._sentence_transformer = SentenceTransformer(model_path, **kwargs)
-            
-            load_time = time.time() - start_time
-            self.logger.info(f"✅ Sentence Transformer loaded in {load_time:.2f} seconds")
-        return self._sentence_transformer
+    # NOTE: sentence_transformer property removed - now handled by ChromaDB embedding function
+    # Embedding models are managed directly by ChromaDB using the custom embedding function
 
     def _get_loading_kwargs(self) -> dict:
         """Get common kwargs for model loading"""
@@ -131,14 +117,8 @@ class ModelManager:
         
         timings = {}
         
-        # Load each model and track timing
-        try:
-            start = time.time()
-            _ = self.sentence_transformer
-            timings['sentence_transformer'] = time.time() - start
-        except Exception as e:
-            self.logger.error(f"❌ Failed to load Sentence Transformer: {e}")
-            timings['sentence_transformer'] = None
+        # NOTE: sentence_transformer loading removed - now handled by ChromaDB embedding function
+        # Embedding models are loaded directly by ChromaDB when needed
         
         try:
             start = time.time()
@@ -190,14 +170,14 @@ class ModelManager:
             'blip_model': self._blip_model is not None,
             'clip_processor': self._clip_processor is not None,
             'clip_model': self._clip_model is not None,
-            'sentence_transformer': self._sentence_transformer is not None,
+            # NOTE: sentence_transformer status removed - now handled by ChromaDB embedding function
         }
 
     def get_model_info(self) -> dict:
         """Get detailed model information including names and sources."""
         blip_path = self.config.local_blip_model_path or self.config.blip_model_name
         clip_path = self.config.local_clip_model_path or self.config.clip_model_name
-        st_path = self.config.local_sentence_transformer_path or self.config.sentence_transformer_model
+        # NOTE: sentence_transformer path removed - now handled by ChromaDB embedding function
         
         def get_source_info(path):
             if path and ('/' in path and not path.startswith('/')):
@@ -216,10 +196,7 @@ class ModelManager:
                 **get_source_info(clip_path),
                 'loaded': self._clip_model is not None and self._clip_processor is not None
             },
-            'sentence_transformer': {
-                **get_source_info(st_path),
-                'loaded': self._sentence_transformer is not None
-            },
+            # NOTE: sentence_transformer info removed - now handled by ChromaDB embedding function
             'device': self.config.device
         }
 
@@ -286,10 +263,5 @@ class ModelManager:
             self.logger.error(f"Error detecting objects: {e}")
             raise
 
-    def create_embeddings(self, text: str) -> np.ndarray:
-        try:
-            embedding = self.sentence_transformer.encode(text)
-            return embedding
-        except Exception as e:
-            self.logger.error(f"Error creating embeddings: {e}")
-            raise
+    # NOTE: Embedding creation is now handled by ChromaDB's custom embedding function
+    # in database/embedding_function.py. This method is no longer needed.

@@ -142,10 +142,11 @@ The UI integrates with the Image Context Vectorization API endpoints:
 src/
 ├── components/
 │   ├── ImageUpload.tsx      # Drag-and-drop upload
-│   ├── ImageSearch.tsx      # Search interface
-│   ├── ImageGallery.tsx     # Gallery with modal
+│   ├── ImageBrowser.tsx     # Unified search and gallery interface
 │   ├── ProcessingStatus.tsx # Task monitoring
-│   └── ModelManagement.tsx  # Model status and preloading
+│   ├── ModelManagement.tsx  # Model status and preloading
+│   ├── DirectoryScanner.tsx # Directory scanning functionality
+│   └── TimeoutIndicator.tsx # Timeout status indicator
 ├── services/
 │   └── api.ts              # API client
 └── App.tsx                 # Main application
@@ -154,10 +155,11 @@ src/
 ### Key Components
 
 - **ImageUpload**: Handles file uploads with progress tracking
-- **ImageSearch**: Search interface with suggestions and filters
-- **ImageGallery**: Grid/list view with detailed image modal
+- **ImageBrowser**: Unified interface combining search and gallery functionality
 - **ProcessingStatus**: Real-time task monitoring
 - **ModelManagement**: AI model status monitoring and preloading
+- **DirectoryScanner**: Directory scanning functionality
+- **TimeoutIndicator**: Timeout status indicator
 - **ApiService**: Centralized API communication
 
 ## Development
