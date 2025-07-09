@@ -104,7 +104,7 @@ const ModelManagement: React.FC<ModelManagementProps> = ({ className = '' }) => 
   };
 
   const getTotalModelsCount = () => {
-    return 3; // BLIP, CLIP, Sentence Transformer
+    return 2; // BLIP, CLIP
   };
 
   return (
