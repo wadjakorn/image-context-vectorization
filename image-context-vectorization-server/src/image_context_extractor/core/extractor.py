@@ -10,7 +10,7 @@ from .image_processor import ImageProcessor
 
 
 class ImageContextExtractor:
-    def __init__(self, config: Config = None):
+    def __init__(self, config: Config = None, skip_compatibility_check: bool = False):
         if config is None:
             config = Config()
         
@@ -18,7 +18,18 @@ class ImageContextExtractor:
         self.logger = logging.getLogger(__name__)
         
         self.model_manager = ModelManager(config.model)
-        self.database = VectorDatabase(config.database, config.model)
+        
+        # Initialize database with optional compatibility check skip
+        try:
+            self.database = VectorDatabase(config.database, config.model, skip_compatibility_check=skip_compatibility_check)
+        except Exception as e:
+            if skip_compatibility_check:
+                # In API dependency mode, create a degraded database instance
+                self.logger.warning(f"Database initialization failed, creating degraded instance: {e}")
+                self.database = None
+            else:
+                raise e
+        
         self.image_processor = ImageProcessor(config.processing)
         
     def extract_image_features(self, image_path: str) -> Dict[str, Any]:
@@ -141,26 +152,43 @@ class ImageContextExtractor:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get database statistics"""
+        if self.database is None:
+            return {
+                'total_images': 0,
+                'collection_name': 'unavailable',
+                'db_path': 'unavailable',
+                'error': 'Database not available due to compatibility issues'
+            }
         return self.database.get_collection_stats()
     
     def get_processed_images(self) -> List[str]:
         """Get list of all processed image paths"""
+        if self.database is None:
+            return []
         return self.database.get_processed_images()
     
     def is_image_processed(self, image_path: str) -> bool:
         """Check if an image has been processed"""
+        if self.database is None:
+            return False
         return self.database.image_exists(image_path)
 
     def get_image_data(self, image_path: str) -> Dict[str, Any]:
         """Get cached image data from database without re-processing"""
+        if self.database is None:
+            return None
         return self.database.get_image_data(image_path)
 
     def get_image_data_by_id(self, image_id: str) -> Dict[str, Any]:
         """Get cached image data by ID from database"""
+        if self.database is None:
+            return None
         return self.database.get_image_data_by_id(image_id)
 
     def get_all_images_data(self, limit: int = None, offset: int = 0) -> List[Dict[str, Any]]:
         """Get all processed images data with pagination"""
+        if self.database is None:
+            return []
         return self.database.get_all_image_data(limit, offset)
     
     def process_external_directory(self, directory_path: str, force_reprocess: bool = False) -> Dict[str, Any]:

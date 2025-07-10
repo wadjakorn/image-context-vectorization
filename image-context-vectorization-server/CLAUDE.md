@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an **Image Context Extraction & Vectorization** system that extracts contextual information from images using AI models (BLIP, CLIP, SentenceTransformers) and stores them in a ChromaDB vector database for semantic similarity search. The system provides multiple interfaces: CLI, REST API, and direct Python API.
+This is an **Image Context Extraction & Vectorization** system that extracts contextual information from images using AI models (BLIP, CLIP, SentenceTransformers) and stores them in a ChromaDB vector database for semantic similarity search. The system provides REST API and direct Python API interfaces.
 
 ## Development Commands
 
@@ -33,18 +33,11 @@ python run_api.py --dev
 # Start API server (production)
 python run_api.py --host 0.0.0.0 --port 8000
 
-# CLI operations
-image-context-extractor process-image image.jpg
-image-context-extractor process-directory ./images/
-image-context-extractor search "people at a party" --results 5
-image-context-extractor stats
-
-# Test model loading performance
-image-context-extractor test-models --preload
-
 # Download models locally
 python scripts/model_utils.py --download-all
-image-context-extractor init-models --download
+
+# CLI operations (DEPRECATED - CLI functionality has been removed)
+# Use the REST API or direct Python API instead
 
 # Run examples
 python examples/example_usage.py
@@ -95,8 +88,8 @@ Image → BLIP (caption) → CLIP (objects/features) → SentenceTransformer (em
 - `src/image_context_extractor/api/routes/`: Route handlers for different endpoints
 - **Unified endpoint**: `GET /api/v1/images/` handles both listing and search (with optional `query` and `objects` parameters)
 
-**CLI Interface**: Comprehensive command-line tool
-- `src/image_context_extractor/cli.py`: Full CLI with subcommands for all operations
+**CLI Interface**: DEPRECATED - CLI functionality has been removed
+- `src/image_context_extractor/cli.py`: Legacy CLI code (no longer functional)
 
 ### Critical Architecture Patterns
 
@@ -128,8 +121,14 @@ The project includes VS Code settings for development:
 - Proper PYTHONPATH setup for src/ directory
 
 ### Environment Variables
-Key configuration through `.env` file:
+Key configuration through `.env` file (all model names are fully configurable):
 ```env
+# Model configuration - all models can be customized
+BLIP_MODEL_NAME=Salesforce/blip-image-captioning-base
+CLIP_MODEL_NAME=openai/clip-vit-base-patch32
+SENTENCE_TRANSFORMER_MODEL=all-MiniLM-L6-v2
+
+# Device and local files
 DEVICE=cuda                    # or cpu
 USE_LOCAL_FILES_ONLY=true      # for offline operation
 LOCAL_BLIP_MODEL_PATH=./models/blip/Salesforce_blip-image-captioning-base

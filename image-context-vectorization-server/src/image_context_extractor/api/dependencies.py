@@ -14,7 +14,8 @@ def get_extractor() -> ImageContextExtractor:
     global _global_extractor
     if _global_extractor is None:
         config = get_config()
-        _global_extractor = ImageContextExtractor(config)
+        # Skip compatibility check during API dependency injection to prevent startup blocking
+        _global_extractor = ImageContextExtractor(config, skip_compatibility_check=True)
     return _global_extractor
 
 

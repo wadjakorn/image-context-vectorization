@@ -9,16 +9,18 @@ import logging
 from ..config.settings import DatabaseConfig, ModelConfig
 from ..utils.chromadb_utils import setup_chromadb
 from .embedding_function import CustomSentenceTransformerEmbeddingFunction
+from .compatibility_checker import DatabaseCompatibilityChecker
 
 # Ensure ChromaDB telemetry is disabled
 setup_chromadb()
 
 
 class VectorDatabase:
-    def __init__(self, config: DatabaseConfig, model_config: ModelConfig = None):
+    def __init__(self, config: DatabaseConfig, model_config: ModelConfig = None, skip_compatibility_check: bool = False):
         self.config = config
         self.model_config = model_config
         self.logger = logging.getLogger(__name__)
+        self.embedding_function = None
         
         try:
             self.client = chromadb.PersistentClient(path=config.db_path)
@@ -26,15 +28,29 @@ class VectorDatabase:
             # Create custom embedding function if model config is provided
             if model_config:
                 model_path = model_config.local_sentence_transformer_path or model_config.sentence_transformer_model
-                embedding_function = CustomSentenceTransformerEmbeddingFunction(
+                self.embedding_function = CustomSentenceTransformerEmbeddingFunction(
                     model_name=model_path,
                     device=model_config.device,
                     cache_folder=model_config.cache_dir
                 )
+                
+                # Check compatibility BEFORE creating/connecting to collection
+                if not skip_compatibility_check:
+                    compatibility_checker = DatabaseCompatibilityChecker(config, model_config)
+                    compatibility_result = compatibility_checker.check_compatibility()
+                    
+                    if not compatibility_result['compatible']:
+                        error_msg = f"Model compatibility check failed: {compatibility_result['message']}"
+                        self.logger.error(error_msg)
+                        raise Exception(error_msg)
+                
                 self.collection = self.client.get_or_create_collection(
                     name=config.collection_name,
-                    embedding_function=embedding_function
+                    embedding_function=self.embedding_function
                 )
+                
+                # Store current model metadata after collection is created
+                self._store_model_metadata()
                 self.logger.info(f"Created collection with custom embedding function: {model_path}")
             else:
                 # Fallback to default embedding function (for backward compatibility)
@@ -270,3 +286,160 @@ class VectorDatabase:
         except Exception as e:
             self.logger.error(f"Error clearing database: {e}")
             return False
+
+    def _store_model_metadata(self):
+        """Store current model metadata in collection metadata"""
+        if not self.embedding_function:
+            return
+            
+        try:
+            model_info = self.embedding_function.get_model_info()
+            
+            # Force dimension loading if not available - ensures new databases have correct dimension
+            if 'dimension' not in model_info or model_info['dimension'] is None:
+                self.logger.info("Dimension not loaded, forcing model load to get dimension...")
+                model_info['dimension'] = self.embedding_function.get_dimension()
+            
+            # Update collection metadata
+            self.collection.modify(metadata={
+                'model_name': model_info['model_name'],
+                'model_dimension': model_info.get('dimension'),
+                'model_device': model_info['device']
+            })
+            self.logger.info(f"Stored model metadata: {model_info['model_name']} (dim: {model_info.get('dimension')})")
+        except Exception as e:
+            self.logger.warning(f"Could not store model metadata: {e}")
+
+    def check_model_compatibility(self) -> Dict[str, Any]:
+        """Check if current model is compatible with existing collection"""
+        try:
+            # Check if collection already exists
+            existing_collections = self.client.list_collections()
+            collection_exists = any(col.name == self.config.collection_name for col in existing_collections)
+            
+            if not collection_exists:
+                # No existing collection, so no compatibility issues
+                return {
+                    'compatible': True,
+                    'message': 'New collection will be created',
+                    'current_model': None,
+                    'new_model': None
+                }
+            
+            # Get existing collection to check metadata
+            try:
+                existing_collection = self.client.get_collection(self.config.collection_name)
+                existing_metadata = existing_collection.metadata or {}
+            except Exception:
+                # Collection exists but no metadata, assume compatibility issue
+                current_model_info = self.embedding_function.get_model_info()
+                return {
+                    'compatible': False,
+                    'message': 'Existing collection has no model metadata. Database clearing required.',
+                    'current_model': None,
+                    'new_model': {
+                        'name': current_model_info['model_name'],
+                        'dimension': current_model_info.get('dimension')
+                    }
+                }
+            
+            current_model_info = self.embedding_function.get_model_info()
+            stored_model_name = existing_metadata.get('model_name')
+            stored_dimension = existing_metadata.get('model_dimension')
+            
+            # Check model name compatibility
+            if stored_model_name and stored_model_name != current_model_info['model_name']:
+                return {
+                    'compatible': False,
+                    'message': f'Model changed: {stored_model_name} → {current_model_info["model_name"]}',
+                    'current_model': {
+                        'name': stored_model_name,
+                        'dimension': stored_dimension
+                    },
+                    'new_model': {
+                        'name': current_model_info['model_name'],
+                        'dimension': current_model_info.get('dimension')
+                    }
+                }
+            
+            # Check dimension compatibility
+            current_dimension = current_model_info.get('dimension')
+            if stored_dimension and current_dimension and stored_dimension != current_dimension:
+                return {
+                    'compatible': False,
+                    'message': f'Embedding dimension changed: {stored_dimension} → {current_dimension}',
+                    'current_model': {
+                        'name': stored_model_name,
+                        'dimension': stored_dimension
+                    },
+                    'new_model': {
+                        'name': current_model_info['model_name'],
+                        'dimension': current_dimension
+                    }
+                }
+            
+            # Models are compatible
+            return {
+                'compatible': True,
+                'message': 'Models are compatible',
+                'current_model': {
+                    'name': stored_model_name,
+                    'dimension': stored_dimension
+                },
+                'new_model': {
+                    'name': current_model_info['model_name'],
+                    'dimension': current_dimension
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error checking model compatibility: {e}")
+            return {
+                'compatible': False,
+                'message': f'Error checking compatibility: {str(e)}',
+                'current_model': None,
+                'new_model': None
+            }
+
+    def clear_database_and_reset(self) -> bool:
+        """Clear entire database and reset for new model"""
+        try:
+            # Use compatibility checker to clear collection
+            if self.model_config:
+                compatibility_checker = DatabaseCompatibilityChecker(self.config, self.model_config)
+                success = compatibility_checker.clear_collection()
+                if not success:
+                    return False
+            else:
+                # Fallback to direct deletion
+                try:
+                    self.client.delete_collection(self.config.collection_name)
+                    self.logger.info(f"Deleted collection: {self.config.collection_name}")
+                except Exception as e:
+                    self.logger.warning(f"Could not delete collection (may not exist): {e}")
+            
+            # Recreate collection with current model (skip compatibility check since we just cleared)
+            if self.embedding_function:
+                self.collection = self.client.get_or_create_collection(
+                    name=self.config.collection_name,
+                    embedding_function=self.embedding_function
+                )
+                self._store_model_metadata()
+                self.logger.info("Created new collection with current model")
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"Error clearing database: {e}")
+            return False
+
+    def get_model_compatibility_status(self) -> Dict[str, Any]:
+        """Get model compatibility status without initializing collection"""
+        if not self.model_config:
+            return {
+                'compatible': True,
+                'message': 'No model configuration provided'
+            }
+        
+        # Use the standalone compatibility checker
+        compatibility_checker = DatabaseCompatibilityChecker(self.config, self.model_config)
+        return compatibility_checker.check_compatibility()

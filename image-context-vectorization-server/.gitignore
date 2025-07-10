@@ -165,3 +165,4 @@ Thumbs.db
 .claude/
 
 uploads/
+model_cache/

@@ -11,6 +11,7 @@ os.environ.setdefault("CHROMA_CLIENT_DISABLE_TELEMETRY", "True")
 
 @dataclass
 class ModelConfig:
+    # Default model names - fully configurable via environment variables
     blip_model_name: str = "Salesforce/blip-image-captioning-base"
     clip_model_name: str = "openai/clip-vit-base-patch32"
     sentence_transformer_model: str = "all-MiniLM-L6-v2"

@@ -41,13 +41,22 @@ class ModelPaths:
         base_dir = Path(self.models_base_dir)
         
         if self.blip_model_dir is None:
-            self.blip_model_dir = str(base_dir / "blip" / "Salesforce_blip-image-captioning-base")
+            # Use configurable model name or fall back to default
+            model_name = os.getenv('BLIP_MODEL_NAME', 'Salesforce/blip-image-captioning-base')
+            safe_name = model_name.replace('/', '_')
+            self.blip_model_dir = str(base_dir / "blip" / safe_name)
         
         if self.clip_model_dir is None:
-            self.clip_model_dir = str(base_dir / "clip" / "openai_clip-vit-base-patch32")
+            # Use configurable model name or fall back to default
+            model_name = os.getenv('CLIP_MODEL_NAME', 'openai/clip-vit-base-patch32')
+            safe_name = model_name.replace('/', '_')
+            self.clip_model_dir = str(base_dir / "clip" / safe_name)
         
         if self.sentence_transformer_dir is None:
-            self.sentence_transformer_dir = str(base_dir / "sentence_transformer" / "all-MiniLM-L6-v2")
+            # Use configurable model name or fall back to default
+            model_name = os.getenv('SENTENCE_TRANSFORMER_MODEL', 'all-MiniLM-L6-v2')
+            safe_name = model_name.replace('/', '_')
+            self.sentence_transformer_dir = str(base_dir / "sentence_transformer" / safe_name)
         
         if self.hf_cache_dir is None:
             self.hf_cache_dir = str(Path(self.cache_base_dir) / "huggingface")

@@ -62,11 +62,12 @@ setup(
             "sphinx-rtd-theme>=1.0",
         ],
     },
-    entry_points={
-        "console_scripts": [
-            "image-context-extractor=image_context_extractor.cli:main",
-        ],
-    },
+    # CLI entry point removed - CLI functionality deprecated
+    # entry_points={
+    #     "console_scripts": [
+    #         "image-context-extractor=image_context_extractor.cli:main",
+    #     ],
+    # },
     include_package_data=True,
     zip_safe=False,
 )

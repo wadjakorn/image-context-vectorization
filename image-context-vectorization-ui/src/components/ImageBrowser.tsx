@@ -58,8 +58,11 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
 
   // Load all images on component mount
   useEffect(() => {
-    loadAllImages();
-  }, []);
+    // Only load images if we haven't loaded any yet and we're not currently loading
+    if (images.length === 0 && !loading) {
+      loadAllImages();
+    }
+  }, [images.length]);
 
   // Load all images
   const loadAllImages = async (objects?: string) => {

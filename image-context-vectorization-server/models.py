@@ -7,7 +7,7 @@ from PIL import Image
 from typing import List, Optional
 import logging
 
-from config import ModelConfig
+from src.image_context_extractor.config.settings import ModelConfig
 
 
 class ModelManager:

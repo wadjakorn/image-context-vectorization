@@ -25,6 +25,7 @@ from .routes import (
     websocket_router,
 )
 from .routes.external_directories import router as external_directories_router
+from .routes.system import router as system_router
 from .models.responses import ErrorResponse
 from ..config.settings import get_config
 from ..utils.logging_utils import setup_logging
@@ -43,14 +44,26 @@ async def lifespan(app: FastAPI):
         config = get_config()
         logger.info("Configuration loaded successfully")
         
-        # Optional: Pre-load models at startup (uncomment to enable)
-        # from ..api.dependencies import get_extractor
+        # Check model compatibility at startup
+        if config.model:
+            from ..database.compatibility_checker import DatabaseCompatibilityChecker
+            checker = DatabaseCompatibilityChecker(config.database, config.model)
+            compatibility_result = checker.check_compatibility()
+            
+            if not compatibility_result['compatible']:
+                logger.warning(f"Model compatibility issue detected: {compatibility_result['message']}")
+                logger.warning("API will start but database operations may fail until resolved")
+            else:
+                logger.info("Model compatibility check passed")
+        
+        # Pre-load models at startup
         extractor = get_extractor()
         timings = extractor.model_manager.preload_all_models()
         logger.info(f"Models pre-loaded at startup in {timings['total']:.2f}s")
         
     except Exception as e:
-        logger.warning(f"Failed to load configuration: {e}")
+        logger.warning(f"Failed to initialize at startup: {e}")
+        logger.warning("API will start but some functionality may be limited")
     
     logger.info("API startup complete")
     
@@ -112,13 +125,16 @@ def create_app() -> FastAPI:
             message="Internal server error",
             details={"path": str(request.url)}
         )
+        # Use model's JSON method to properly serialize datetime fields
+        import json
         return JSONResponse(
             status_code=500,
-            content=error_response.dict()
+            content=json.loads(error_response.json())
         )
     
     # Include routers
     app.include_router(health_router)
+    app.include_router(system_router)
     app.include_router(images_router)
     app.include_router(duplicates_router)
     app.include_router(directories_router)
@@ -274,7 +290,8 @@ def run_server(
         port=port,
         reload=reload,
         log_level=log_level,
-        factory=True
+        factory=True,
+        reload_includes=["src/**/*.py", "*.py"] if reload else None
     )
 
 

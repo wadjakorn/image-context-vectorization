@@ -3,7 +3,7 @@ from PIL import Image
 from typing import Dict, Any, List
 import logging
 
-from config import ProcessingConfig
+from src.image_context_extractor.config.settings import ProcessingConfig
 
 
 class ImageProcessor:

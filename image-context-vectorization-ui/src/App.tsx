@@ -13,23 +13,39 @@ import ImageBrowser from './components/ImageBrowser';
 import ProcessingStatus from './components/ProcessingStatus';
 import ModelManagement from './components/ModelManagement';
 import DirectoryScanner from './components/DirectoryScanner';
-import { apiService, HealthResponse } from './services/api';
+import ModelCompatibilityModal from './components/ModelCompatibilityModal';
+import { apiService, HealthResponse, ModelCompatibilityResponse } from './services/api';
 import toast from 'react-hot-toast';
 
 type TabType = 'upload' | 'browse' | 'processing' | 'models' | 'directory';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('upload');
+  const [activeTab, setActiveTab] = useState<TabType>('browse');
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [modelCompatibility, setModelCompatibility] = useState<ModelCompatibilityResponse | null>(null);
+  const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
 
-  // Load health status on mount
+  // Load health status and check model compatibility on mount
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        // Check model compatibility first
+        const compatibilityResponse = await apiService.checkModelCompatibility();
+        if (compatibilityResponse?.compatible !== modelCompatibility?.compatible) {
+          setModelCompatibility(compatibilityResponse);
+           if (!compatibilityResponse.compatible) {
+            setShowCompatibilityModal(true);
+            // Don't proceed with other initialization if models are incompatible
+            return;
+          }
+        }
+
         const healthResponse = await apiService.getHealth();
-        setHealth(healthResponse);
+        if (healthResponse.status !== health?.status) {
+          setHealth(healthResponse);
+        }
       } catch (error) {
-        console.error('Failed to load health status:', error);
+        console.error('Failed to load initial data:', error);
         // Set a default health object to prevent null reference errors
         setHealth({
           status: 'unhealthy',
@@ -47,22 +63,42 @@ function App() {
       }
     };
 
-    loadInitialData();
-  }, []);
+    // Only load initial data if we haven't loaded it yet
+    if (!health && !modelCompatibility) {
+      loadInitialData();
+    }
+  }, [health, modelCompatibility]);
 
   // Tab configuration
   const tabs = [
-    { id: 'upload' as TabType, name: 'Upload', icon: PhotoIcon },
     { id: 'browse' as TabType, name: 'Browse & Search', icon: MagnifyingGlassIcon },
+    { id: 'directory' as TabType, name: 'Directory', icon: FolderIcon },
+    { id: 'upload' as TabType, name: 'Upload', icon: PhotoIcon },
     { id: 'processing' as TabType, name: 'Processing', icon: CogIcon },
     { id: 'models' as TabType, name: 'Models', icon: CpuChipIcon },
-    { id: 'directory' as TabType, name: 'Directory', icon: FolderIcon },
   ];
 
   const handleUploadComplete = () => {
     toast.success('Upload completed successfully!');
     // Switch to browse tab to see uploaded images
-    setActiveTab('browse');
+    // setActiveTab('browse');
+  };
+
+  const handleClearDatabase = async () => {
+    try {
+      const result = await apiService.clearDatabaseAndRestart();
+      if (result.success) {
+        toast.success('Database cleared successfully!');
+        setShowCompatibilityModal(false);
+        // Reload the app to restart with clean state
+        window.location.reload();
+      } else {
+        throw new Error(result.message || 'Failed to clear database');
+      }
+    } catch (error) {
+      console.error('Failed to clear database:', error);
+      throw error; // Let the modal handle the error display
+    }
   };
 
   const renderTabContent = () => {
@@ -184,9 +220,9 @@ function App() {
                   </span>
                 </div>
               )}
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+              {/* <div className="text-sm text-gray-600 dark:text-gray-400">
                 {health?.stats?.total_images || 0} images
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
@@ -244,6 +280,17 @@ function App() {
           },
         }}
       />
+
+      {/* Model Compatibility Modal */}
+      {modelCompatibility && (
+        <ModelCompatibilityModal
+          isVisible={showCompatibilityModal}
+          message={modelCompatibility.message}
+          currentModel={modelCompatibility.current_model}
+          newModel={modelCompatibility.new_model}
+          onConfirmClear={handleClearDatabase}
+        />
+      )}
     </div>
   );
 }

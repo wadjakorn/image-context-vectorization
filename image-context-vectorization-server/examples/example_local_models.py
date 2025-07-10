@@ -5,7 +5,7 @@ Example usage with local models
 import os
 import logging
 from main import ImageContextExtractor, setup_logging
-from config import Config, ModelConfig, DatabaseConfig, ProcessingConfig
+from src.image_context_extractor.config.settings import Config, ModelConfig, DatabaseConfig, ProcessingConfig
 from model_utils import ModelDownloader
 
 

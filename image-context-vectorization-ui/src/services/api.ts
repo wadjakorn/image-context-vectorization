@@ -180,6 +180,25 @@ export interface ModelPreloadResponse {
   timestamp: string;
 }
 
+export interface ModelDimensionInfo {
+  name: string;
+  dimension: number;
+}
+
+export interface ModelCompatibilityResponse {
+  compatible: boolean;
+  message: string;
+  requires_clearing: boolean;
+  current_model?: ModelDimensionInfo;
+  new_model?: ModelDimensionInfo;
+}
+
+export interface ClearDatabaseResponse {
+  success: boolean;
+  message: string;
+  new_model?: ModelDimensionInfo;
+}
+
 export const apiService = {
   // Health & Status
   async getHealth(): Promise<HealthResponse> {
@@ -454,6 +473,28 @@ export const apiService = {
 
   async getAllProcessingStatus(): Promise<{ processing_tasks: Record<string, ProcessingStatus> }> {
     const response = await api.get('/api/v1/directories/processing-status');
+    return response.data;
+  },
+
+  // System Compatibility
+  async checkModelCompatibility(): Promise<ModelCompatibilityResponse> {
+    const response = await api.get('/api/v1/system/model-compatibility', {
+      timeout: TIMEOUTS.HEALTH,
+    });
+    return response.data;
+  },
+
+  async clearDatabaseAndRestart(): Promise<ClearDatabaseResponse> {
+    const response = await api.post('/api/v1/system/clear-database', {}, {
+      timeout: TIMEOUTS.PROCESSING,
+    });
+    return response.data;
+  },
+
+  async getSystemHealth(): Promise<any> {
+    const response = await api.get('/api/v1/system/health', {
+      timeout: TIMEOUTS.HEALTH,
+    });
     return response.data;
   },
 };
