@@ -714,7 +714,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
       {/* Image Modal */}
       {selectedImage && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-6xl max-h-[90vh] w-full flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-full max-h-full w-full flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -746,7 +746,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
             </div>
 
             {/* Modal Content */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-auto">
               {/* Image Display */}
               <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
                 {loadingImage ? (
@@ -769,7 +769,7 @@ const ImageBrowser: React.FC<ImageBrowserProps> = ({
               </div>
 
               {/* Image Metadata */}
-              <div className="w-80 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
+              <div className="w-1/4 p-4 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
                 <div className="space-y-4">
                   {/* Basic Info */}
                   <div>
