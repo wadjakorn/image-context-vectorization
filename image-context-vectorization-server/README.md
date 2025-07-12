@@ -90,14 +90,6 @@ image-context-extractor init-models --download
 python main.py
 ```
 
-### Running Examples
-
-```bash
-python examples/example_usage.py
-python examples/example_env_config.py
-python examples/example_local_models.py
-```
-
 Make sure to update the image paths in the examples to point to your actual images.
 
 ## Configuration
@@ -267,16 +259,6 @@ python -c "from src.image_context_extractor.config.model_paths import main; main
 
 # Using the main CLI
 image-context-extractor init-models --download
-```
-
-### Configuration Examples
-
-```bash
-# Run configuration examples
-python examples/example_env_config.py
-
-# Run model paths examples  
-python examples/example_model_paths.py
 ```
 
 ## Supported Image Formats

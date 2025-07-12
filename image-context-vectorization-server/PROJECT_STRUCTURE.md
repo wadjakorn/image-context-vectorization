@@ -27,11 +27,6 @@ image-context-vectorization/
 │       └── utils/                          # Utility functions
 │           ├── __init__.py
 │           └── logging_utils.py           # Logging configuration
-├── examples/                               # Usage examples
-│   ├── example_usage.py                   # Basic usage examples
-│   ├── example_env_config.py              # Environment configuration examples
-│   ├── example_local_models.py            # Local models examples
-│   └── example_model_paths.py             # Model paths examples
 ├── scripts/                                # Utility scripts
 │   └── model_utils.py                     # Model download and management
 ├── tests/                                  # Test files (future)
@@ -65,13 +60,6 @@ Main package containing all the core functionality.
 
 #### `utils/`
 - **`logging_utils.py`**: Logging configuration and utilities
-
-### `examples/`
-Complete working examples demonstrating different features:
-- Basic usage
-- Environment configuration
-- Local models setup
-- Model paths management
 
 ### `scripts/`
 Utility scripts for maintenance and setup:
@@ -144,9 +132,6 @@ from image_context_extractor.database import VectorDatabase
 ```bash
 # Install in development mode
 pip install -e .
-
-# Run examples
-python examples/example_usage.py
 
 # Use CLI
 python -m image_context_extractor.cli --help

@@ -43,11 +43,6 @@ image-context-extractor init-models --download
 python scripts/model_utils.py --download-all
 image-context-extractor test-models --preload
 
-# Examples
-python examples/example_usage.py
-python examples/api_examples.py
-```
-
 ### Frontend (React UI)
 ```bash
 # Navigate to frontend directory
@@ -83,7 +78,6 @@ image-context-vectorization/
 │   │   ├── database/                      # Vector database operations
 │   │   └── utils/                         # Utility functions
 │   ├── models/                            # Downloaded AI models
-│   ├── examples/                          # Usage examples
 │   └── scripts/                           # Utility scripts
 └── image-context-vectorization-ui/        # React frontend
     ├── src/components/                # UI components

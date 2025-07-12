@@ -39,9 +39,6 @@ python scripts/model_utils.py --download-all
 # CLI operations (DEPRECATED - CLI functionality has been removed)
 # Use the REST API or direct Python API instead
 
-# Run examples
-python examples/example_usage.py
-python examples/api_examples.py
 ```
 
 ### Development Tools (if dev dependencies installed)

@@ -37,8 +37,6 @@ curl http://localhost:8000/api/v1/models/status
 # Preload models (optional for faster responses)
 curl -X POST http://localhost:8000/api/v1/models/preload
 
-# Run example tests
-python examples/api_examples.py
 ```
 
 ## Base URL
@@ -558,9 +556,6 @@ pip freeze > requirements.txt
 ### Testing
 
 ```bash
-# Run API examples
-python examples/api_examples.py
-
 # Manual testing with curl
 curl -X GET "http://localhost:8000/api/v1/health"
 ```
